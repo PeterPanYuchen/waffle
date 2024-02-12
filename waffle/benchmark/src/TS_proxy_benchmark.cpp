@@ -14,7 +14,8 @@
 #include "proxy_client.h"
 #include "async_proxy_client.h"
 #include "thrift_utils.h"
-
+#include "TS_key_master.h"
+//what a mess
 typedef std::vector<std::pair<std::vector<std::string>, std::vector<std::string>>> trace_vector;
 
 void load_trace(const std::string &trace_location, trace_vector &trace, int client_batch_size) {
@@ -186,7 +187,7 @@ int _mkdir(const char *path) {
 int main(int argc, char *argv[]) {
     std::string proxy_host = "192.168.252.109";
     int proxy_port = 9090;
-    std::string trace_location = "";
+//    std::string trace_location = "";
     int client_batch_size = 50;
     int object_size = 1000;
     int num_clients = 1;
@@ -207,9 +208,9 @@ int main(int argc, char *argv[]) {
             case 'p':
                 proxy_port = std::atoi(optarg);
                 break;
-            case 't':
-                trace_location = std::string(optarg);
-                break;
+//            case 't':
+//                trace_location = std::string(optarg);
+//                break;
             case 's':
                 object_size = std::atoi(optarg);
                 break;
