@@ -51,7 +51,8 @@ add_executable(proxy_server
         ../libstorage/src/redis.h
         ../libstorage/src/redis.cpp
 
-        ../service/src/thrift_utils.h)
+        ../service/src/thrift_utils.h
+        ../utils/TS_get_oldest_key.h)
 add_dependencies(proxy_server libcuckoo thrift_ep)
 target_link_libraries(proxy_server
         Threads::Threads

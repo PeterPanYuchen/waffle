@@ -33,6 +33,7 @@
 
 #include "redis.h"
 #include "storage_interface.h"
+#include "TS_get_oldest_key.h"
 //#include "memcached.h"
 
 
@@ -92,7 +93,9 @@ public:
     int R = 50;
     int B = 50;
     int F = 25;
-    int D = 50;
+    int D = 100000;
+    int N = 100000;
+    int object_size=1024;
     int cacheBatches = 50;
     int redisBulkLength = 524287;
     std::unordered_map<std::string, std::string> keyValueMap;
@@ -101,6 +104,8 @@ public:
     std::atomic<int> timeStamp{0};
 
 private:
+    std::vector<std::string> keys_to_be_deleted;
+    void remove_oldest_data(std::vector<operation> &storage_batch);
     void create_security_batch(std::shared_ptr<queue <std::pair<operation, std::shared_ptr<std::promise<std::string>>>>> &op_queue,
                                           std::vector<operation> &storage_batch,
                                           std::unordered_map<std::string, std::vector<std::shared_ptr<std::promise<std::string>>>> &keyToPromiseMap, int& cacheMisses);

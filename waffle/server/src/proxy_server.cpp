@@ -53,7 +53,7 @@ void usage() {
     std::cout << "\t -h: Storage server host name\n";
     std::cout << "\t -p: Storage server port\n";
     std::cout << "\t -s: Storage server type (redis, rocksdb, memcached)\n";
-    std::cout << "\t -n: Storage server count\n";
+    std::cout << "\t -a: Storage server count\n";
     std::cout << "\t -z: Proxy server type\n";
     // Workload parameters
     std::cout << "\t -l: Workload file\n";
@@ -74,7 +74,6 @@ int main(int argc, char *argv[]) {
 
     std::shared_ptr<proxy> proxy_ = std::make_shared<waffle_proxy>();
     int o;
-    std::string proxy_type_ = "waffle";
     while ((o = getopt(argc, argv, "h:p:s:n:v:b:c:t:o:d:z:q:l:m:r:y:f:a")) != -1) {
         switch (o) {
             case 'h':
@@ -83,13 +82,7 @@ int main(int argc, char *argv[]) {
             case 'p':
                 dynamic_cast<waffle_proxy&>(*proxy_).server_port_ = std::atoi(optarg);
                 break;
-            case 'f':
-                dynamic_cast<waffle_proxy&>(*proxy_).F = std::atoi(optarg);
-                break;
-            case 'd':
-                dynamic_cast<waffle_proxy&>(*proxy_).D = std::atoi(optarg);
-                break;
-            case 'n':
+            case 'a':
                 dynamic_cast<waffle_proxy&>(*proxy_).num_cores = std::atoi(optarg);
                 break;
             case 'c':
@@ -107,23 +100,30 @@ int main(int argc, char *argv[]) {
             case 'o':
                 dynamic_cast<waffle_proxy&>(*proxy_).output_location_ = std::string(optarg);
                 break;
-            case 'b':
-                dynamic_cast<waffle_proxy&>(*proxy_).B = std::atoi(optarg);
-                break;
-            case 'a':
-                proxy_type_ = std::string(optarg);
-                break;
             case 'q':
                 client_batch_size = std::atoi(optarg);
                 break;
             case 'l':
                 dynamic_cast<waffle_proxy&>(*proxy_).trace_location_ = std::string(optarg);
                 break;
+                //print information
             case 'y':
                 dynamic_cast<waffle_proxy&>(*proxy_).latency = true;
                 break;
+            case 'b':
+                dynamic_cast<waffle_proxy&>(*proxy_).B = std::atoi(optarg);
+                break;
             case 'r':
                 dynamic_cast<waffle_proxy&>(*proxy_).R = std::atoi(optarg);
+                break;
+            case 'f':
+                dynamic_cast<waffle_proxy&>(*proxy_).F = std::atoi(optarg);
+                break;
+            case 'n':
+                dynamic_cast<waffle_proxy&>(*proxy_).N = std::atoi(optarg);
+                break;
+            case 'd':
+                dynamic_cast<waffle_proxy&>(*proxy_).D = std::atoi(optarg);
                 break;
             default:
                 usage();

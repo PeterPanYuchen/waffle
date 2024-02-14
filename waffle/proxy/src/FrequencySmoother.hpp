@@ -14,14 +14,15 @@ bool freqCmp(std::pair<std::string, int> a, std::pair<std::string, int> b);
 class FrequencySmoother {
 
 private:
-	std::set<std::pair<std::string, int>, decltype(&freqCmp)> accessTree;
 	std::unordered_map<std::string, int> accessFreqs;
 	// std::unordered_map<std::string, int> freqStore;
 
 public:
+    std::set<std::pair<std::string, int>, decltype(&freqCmp)> accessTree;
 	FrequencySmoother(FrequencySmoother&& other) noexcept;
 	FrequencySmoother& operator=(FrequencySmoother&& other) noexcept;
 	FrequencySmoother();
+
 	void insert(std::string key);
 	int getMinFrequency();
 	void incrementFrequency(std::string key);

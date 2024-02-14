@@ -98,7 +98,7 @@ void waffle_proxy::init(const std::vector<std::string> &keys, const std::vector<
 
     id_to_client_ = *(static_cast<std::shared_ptr<thrift_response_client_map>*>(args[0]));
     //int num_cores = sysconf(_SC_NPROCESSORS_ONLN);
-    std::cout << "max cores is " << sysconf(_SC_NPROCESSORS_ONLN) << std::endl << " and current cores used is " << num_cores;
+    std::cout << "max cores is " << sysconf(_SC_NPROCESSORS_ONLN) << " and current cores used is " << num_cores << std::endl;
     std::vector<std::thread> threads;
     for (int i = 0; i < num_cores; i++) {
         auto q = std::make_shared<queue<std::pair<operation, std::shared_ptr<std::promise<std::string>>>>>();
@@ -218,6 +218,43 @@ void waffle_proxy::init(const std::vector<std::string> &keys, const std::vector<
 
     std::cout << "Successfully initialized waffle with keys size " << keys.size() << " and cache with " << cache.size() << " Fake keys size is " << D << " batch size is " << B << " F is" << F << " FakeBST size is " << fakeBst.size() << std::endl;
 }
+void waffle_proxy::remove_oldest_data(std::vector<operation> &storage_batch) {
+    auto& bstMutex = realBst.getMutex();
+    {
+        std::lock_guard<std::mutex> lock(bstMutex);
+        auto oldest_key_feq_pair = TS_get_oldest_key::get_oldest_key(realBst,keys_to_be_deleted);
+
+        if(cache.checkIfKeyExists(oldest_key_feq_pair.first) == false && EvictedItems.checkIfKeyExists(oldest_key_feq_pair.first) == false) {
+            auto isPresentInRunningKeys = runningKeys.insertIfNotPresent(oldest_key_feq_pair.first);
+            if(isPresentInRunningKeys == false) {
+                operation temp = operation();
+                temp.key = oldest_key_feq_pair.first;
+                temp.value = "";
+                storage_batch.push_back(temp);
+            }
+            keys_to_be_deleted.push_back(oldest_key_feq_pair.first);
+            return;
+        }
+
+
+        if (cache.checkIfKeyExists(oldest_key_feq_pair.first) == true) {
+        //remove from cache
+            cache.removeKey(oldest_key_feq_pair.first);
+            realBst.removeKey(oldest_key_feq_pair.first);
+            return;
+        }
+
+        if (EvictedItems.checkIfKeyExists(oldest_key_feq_pair.first) == true) {
+            //remove from evicted items
+            EvictedItems.erase(oldest_key_feq_pair.first);
+            realBst.removeKey(oldest_key_feq_pair.first);
+            return;
+        }
+
+        //WARNING: This should never happen
+        std::cout << "WARNING: This should never happen: Key is not present in cache or evicted items" << std::endl;
+    }
+}
 
 void waffle_proxy::create_security_batch(std::shared_ptr<queue <std::pair<operation, std::shared_ptr<std::promise<std::string>>>>> &op_queue,
                                           std::vector<operation> &storage_batch,
@@ -249,12 +286,14 @@ void waffle_proxy::create_security_batch(std::shared_ptr<queue <std::pair<operat
         } else {
             // It's a PUT request
             if(cache.checkIfKeyExists(currentKey) == false && EvictedItems.checkIfKeyExists(currentKey) == false) {
-                auto isPresentInRunningKeys = runningKeys.insertIfNotPresent(currentKey);
-                if(isPresentInRunningKeys == false) {
-                    storage_batch.push_back(operation_promise_pair.first);
-                }
-                ++cacheMisses;
+                remove_oldest_data(storage_batch);
+
+                //This Cache Miss is always a miss
+//                ++cacheMisses;
+            }else{
+                std::cout<< "WARNING: This should never happen: Key is already present in cache or evicted items" << std::endl;
             }
+
             cache.insertIntoCache(currentKey, operation_promise_pair.first.value);
             operation_promise_pair.second->set_value(cache.getValueWithoutPositionChange(currentKey));
         }
@@ -363,6 +402,13 @@ void waffle_proxy::execute_batch(const std::vector<operation> &operations, std::
             auto keyAboutToGoToCache = readBatchMap[storage_keys[i]];
             std::string valueAboutToGoToCache = enc_engine->decryptNonDeterministic(responses[i]);
             promiseSatisfy[keyAboutToGoToCache] = valueAboutToGoToCache;
+
+            if(std::find(realKeysNotInCache.begin(), realKeysNotInCache.end(), readBatchMap[storage_keys[i]]) != realKeysNotInCache.end()){
+                //print info
+                std::cout<<"Oldest Key: "<<readBatchMap[storage_keys[i]]<< " is removed from the server." << std::endl;
+                continue;
+            }
+
             if(cache.checkIfKeyExists(keyAboutToGoToCache) == true) {
                 valueAboutToGoToCache = cache.getValueWithoutPositionChange(keyAboutToGoToCache);
             }
