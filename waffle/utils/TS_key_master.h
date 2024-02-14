@@ -75,19 +75,7 @@ public:
         return timestamp;
     };
 
-    std::string get_data_type(){
-        size_t firstAmp = key.find('&');
-        if (firstAmp == std::string::npos) {
-            return "string";
-        }
-        size_t secondAmp = key.find('&', firstAmp + 1);
-        if (secondAmp == std::string::npos) {
-            return "string";
-        }
-        return key.substr(firstAmp + 1, secondAmp - firstAmp - 1);
-    }
 };
-
 
 
 class ItemIdGenerator {
@@ -143,15 +131,8 @@ public:
     }
 };
 
-class UNIX_TIMESTAMP {
-public:
-    static std::string current_time() {
-        time_t now = time(0);
-        return std::to_string(now);
-    };
-};
 std::mt19937 ItemIdGenerator::generator = std::mt19937(std::random_device{}());
-const std::vector<std::string> ItemIdGenerator::data_types = {"int", "float", "string", "bool", "blob"};
+const std::vector<std::string> ItemIdGenerator::data_types = {"int", "float", "bool"};//"string", "bool", "blob"};
 std::uniform_int_distribution<> ItemIdGenerator::distribution=std::uniform_int_distribution<>(0, ItemIdGenerator::data_types.size() - 1);
 const std::vector<std::string> ItemIdGenerator::categories = {
         "CPU", "GPU", "DISK", "MEM", "NET", "IO", "SENSOR", "POWER", "BATTERY", "TEMP",

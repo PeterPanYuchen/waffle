@@ -1,7 +1,6 @@
 #ifndef WAFFLE_THRIFT_HANDLER_FACTORY_H
 #define WAFFLE_THRIFT_HANDLER_FACTORY_H
 
-#include "thrift_handler_factory.h"
 #include "thrift_handler.h"
 //#include <thrift/protocol/TBinaryProtocol.h>
 //#include <thrift/server/TSimpleServer.h>
@@ -28,4 +27,4 @@ private:
     std::atomic<int64_t> client_id_gen_;
 };
 
-#endif //PANCAKE_THRIFT_HANDLER_FACTORY_H
+#endif //WAFFLE_THRIFT_HANDLER_FACTORY_H

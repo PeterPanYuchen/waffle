@@ -14,7 +14,6 @@
 #include "proxy_client.h"
 #include "async_proxy_client.h"
 #include "thrift_utils.h"
-#include "TS_key_master.h"
 //what a mess
 typedef std::vector<std::pair<std::vector<std::string>, std::vector<std::string>>> trace_vector;
 
@@ -112,10 +111,10 @@ void run_benchmark(int run_time, bool stats, std::vector<int> &latencies, int cl
         elapsed = static_cast<int>(std::chrono::duration_cast<std::chrono::microseconds>(e - s).count());
         ++i;
     }
-    if (stats) 
+    if (stats)
         ops = client.num_requests_satisfied() - ops;
     // std::cout << "Ops is " << ops << " client num_requests_satisfied is " << client.num_requests_satisfied() << std::endl;
-    e = std::chrono::high_resolution_clock::now(); 
+    e = std::chrono::high_resolution_clock::now();
     elapsed = static_cast<int>(std::chrono::duration_cast<std::chrono::microseconds>(e - s).count());
     if (stats)
         xput += (int)(static_cast<double>(ops) * 1000000 / elapsed);
@@ -173,21 +172,21 @@ void usage() {
 };
 
 int _mkdir(const char *path) {
-    #ifdef _WIN32
-        return ::_mkdir(path);
-    #else
-        #if _POSIX_C_SOURCE
-            return ::mkdir(path, 0755);
-        #else
-            return ::mkdir(path, 0755); // not sure if this works on mac
-        #endif
-    #endif
+#ifdef _WIN32
+    return ::_mkdir(path);
+#else
+#if _POSIX_C_SOURCE
+    return ::mkdir(path, 0755);
+#else
+    return ::mkdir(path, 0755); // not sure if this works on mac
+#endif
+#endif
 }
 
 int main(int argc, char *argv[]) {
     std::string proxy_host = "192.168.252.109";
     int proxy_port = 9090;
-//    std::string trace_location = "";
+    std::string trace_location = "";
     int client_batch_size = 50;
     int object_size = 1000;
     int num_clients = 1;
@@ -208,9 +207,9 @@ int main(int argc, char *argv[]) {
             case 'p':
                 proxy_port = std::atoi(optarg);
                 break;
-//            case 't':
-//                trace_location = std::string(optarg);
-//                break;
+            case 't':
+                trace_location = std::string(optarg);
+                break;
             case 's':
                 object_size = std::atoi(optarg);
                 break;
@@ -237,7 +236,7 @@ int main(int argc, char *argv[]) {
     std::vector<std::thread> threads;
     for (int i = 0; i < num_clients; i++) {
         threads.push_back(std::thread(client, std::ref(i), std::ref(client_batch_size), std::ref(object_size), std::ref(trace),
-                          std::ref(output_directory), std::ref(proxy_host), std::ref(proxy_port), std::ref(xput)));
+                                      std::ref(output_directory), std::ref(proxy_host), std::ref(proxy_port), std::ref(xput)));
     }
     for (int i = 0; i < num_clients; i++)
         threads[i].join();
