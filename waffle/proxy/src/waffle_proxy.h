@@ -68,7 +68,7 @@ public:
     void flush();
 
     std::string output_location_ = "log";
-    std::string trace_location_ = "";
+//    std::string trace_location_ = "";
     std::string server_host_name_ = "192.168.252.110";
     int server_port_ = 6379;
     int security_batch_size_ = 3;

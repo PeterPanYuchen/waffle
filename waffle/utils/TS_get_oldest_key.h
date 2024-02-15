@@ -27,24 +27,13 @@ public:
             }
             it++;
         }
-        frequencySmoother.removeKey(oldest_key);
+        frequencySmoother.removeKey_without_mutex(oldest_key);
         return std::pair<std::string,int>(oldest_key,oldest_timestamp);
     }
 
     static long get_timestamp(std::string key){
-        size_t firstAmp = key.find('&');
-        if (firstAmp == std::string::npos) {
-            std::cout<<"WARNING: No timestamp found in key: "<<key<<std::endl;
-            return -1;
-        }
-        size_t secondAmp = key.find('&', firstAmp + 1);
-        if (secondAmp == std::string::npos) {
-            std::cout<<"WARNING: No timestamp found in key: "<<key<<std::endl;
-            return -1;
-        }
-        //return the int between the two ampersands
-        return std::stol(key.substr(firstAmp + 1, secondAmp - firstAmp - 1));
-
+        size_t pos = key.rfind('@');
+        return std::stol(key.substr(pos + 1));
     }
 
 };

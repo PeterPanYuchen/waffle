@@ -8,7 +8,7 @@ include_directories(${STORAGE_INCLUDE} ${CLIENT_INCLUDE} ${PROXY_INCLUDE} ${BENC
 
 
 add_executable(proxy_benchmark
-        src/proxy_benchmark_old.cpp
+        src/TS_proxy_benchmark.cpp
 
         ../libclient/src/client.h
         ../libclient/src/proxy_client.cpp
@@ -60,8 +60,7 @@ add_executable(proxy_benchmark
         ../service/src/thrift_utils.h
         ../utils/TS_value_master.h
         ../utils/utils.h
-        ../utils/TS_value_master_test.cpp
-        #       ../utils/TS_key_master.h
+       ../utils/TS_key_master.h
 )
 add_dependencies(proxy_benchmark cpp_redis libcuckoo openssl_ep thrift_ep)
 target_link_libraries(proxy_benchmark

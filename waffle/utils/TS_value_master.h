@@ -123,8 +123,50 @@ private:
 
 class TimeSeriesDataMap {
 public:
+    int batch_size = 100;
+    static std::string generateDataForKey(const std::string& key, int object_size){
+        std::string dataType = DataType::get_data_type(key);
+        std::string serializedData;
+
+        if (dataType == "float") {
+            auto data = TimeSeriesDataGenerator::generateData<float>(object_size);
+            serializedData = BinarySerializer::serialize(data);
+        } else if (dataType == "int") {
+            auto data = TimeSeriesDataGenerator::generateData<int>(object_size);
+            serializedData = BinarySerializer::serialize(data);
+        } else if (dataType == "bool") {
+            auto data = TimeSeriesDataGenerator::generateData<bool>(object_size); // Changed to bool for boolean type
+            serializedData = BinarySerializer::serialize(data);
+        } else {
+            throw std::invalid_argument("Unsupported data type in key: " + dataType);
+        }
+        return serializedData;
+    }
+
+
     TimeSeriesDataMap(const std::vector<std::string>& keys, int generation_interval, size_t object_size)
             : keys_(keys), generation_interval_(generation_interval), object_size_(object_size) {}
+
+    TimeSeriesDataMap(const std::vector<std::string>& keys, int generation_interval, size_t object_size, int batch_size)
+            : keys_(keys), generation_interval_(generation_interval), object_size_(object_size), batch_size(batch_size) {}
+
+    std::pair<std::vector<std::string>, std::vector<std::string>> generate_batch_TS_data(int batch_size) {
+        std::vector<std::string> keys;
+        std::vector<std::string> data;
+        for (int i = 0; i < batch_size; i++) {
+            std::tuple<std::string, long, std::string> result = generate_TS_data();
+            std::string key = std::get<0>(result);
+            long timestamp = std::get<1>(result);
+            std::string value = std::get<2>(result);
+//            std::cout << "Generated data for key: " << key+"@"+std::to_string(timestamp) << " at timestamp: " << timestamp << std::endl;
+            keys.push_back(key+"@"+std::to_string(timestamp));
+            data.push_back(value);
+        }
+        return {keys, data};
+    }
+    std::pair<std::vector<std::string>, std::vector<std::string>> generate_batch_TS_data() {
+        return generate_batch_TS_data(batch_size);
+    }
     std::tuple<std::string, long, std::string> generate_TS_data() {
         while(true) {
             long now = UNIX_TIMESTAMP::current_time();
@@ -160,33 +202,16 @@ public:
             std::cout<<"No data needs to be generated at this time."<<std::endl;
         }
     }
-
 private:
+
+    std::string generateDataForKey(const std::string& key) const {
+        return generateDataForKey(key, object_size_);
+    }
     std::vector<std::string> keys_;
     double generation_interval_;
     size_t object_size_;
     std::unordered_map<std::string, long> last_generation_time_; // Use string for UNIX timestamp
 
-    std::string generateDataForKey(const std::string& key) const {
-        size_t pos_start = key.find('&') + 1;
-        size_t pos_end = key.find('&', pos_start);
-        std::string dataType = key.substr(pos_start, pos_end - pos_start);
-        std::string serializedData;
-
-        if (dataType == "float") {
-            auto data = TimeSeriesDataGenerator::generateData<float>(object_size_);
-            serializedData = BinarySerializer::serialize(data);
-        } else if (dataType == "int") {
-            auto data = TimeSeriesDataGenerator::generateData<int>(object_size_);
-            serializedData = BinarySerializer::serialize(data);
-        } else if (dataType == "bool") {
-            auto data = TimeSeriesDataGenerator::generateData<bool>(object_size_); // Changed to bool for boolean type
-            serializedData = BinarySerializer::serialize(data);
-        } else {
-            throw std::invalid_argument("Unsupported data type in key: " + dataType);
-        }
-        return serializedData;
-    }
 };
 
 

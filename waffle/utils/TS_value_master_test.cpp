@@ -45,7 +45,11 @@ int main() {
         size_t object_size = 64; // Assume size is enough for 5 element
         TimeSeriesDataMap tsDataMap(keys, generation_interval, object_size);
         for(int i = 0; i < 10000; i++) {
-            auto [key, timestamp, data] = tsDataMap.generate_TS_data();
+            std::tuple<std::string, long, std::string> result = tsDataMap.generate_TS_data();
+            std::string key = std::get<0>(result);
+            long timestamp = std::get<1>(result);
+            std::string data = std::get<2>(result);
+
             assert(!key.empty() && !data.empty());
             std::cout << "Generated data for key: " << key << " at timestamp: " << timestamp << std::endl;
             assert(data.length()==object_size); //

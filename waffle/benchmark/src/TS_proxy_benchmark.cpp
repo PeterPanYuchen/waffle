@@ -14,64 +14,13 @@
 #include "proxy_client.h"
 #include "async_proxy_client.h"
 #include "thrift_utils.h"
-//what a mess
+#include "TS_value_master.h"
+#include "TS_key_master.h"
 typedef std::vector<std::pair<std::vector<std::string>, std::vector<std::string>>> trace_vector;
 
-void load_trace(const std::string &trace_location, trace_vector &trace, int client_batch_size) {
-    std::vector<std::string> get_keys;
-    std::vector<std::string> put_keys;
-    std::vector<std::string> put_values;
-
-    std::unordered_map<std::string, int> key_to_frequency;
-    int frequency_sum = 0;
-    std::string op, key, val;
-    std::ifstream in_workload_file;
-    in_workload_file.open(trace_location, std::ios::in);
-    if(!in_workload_file){
-        std::perror("Unable to find workload file");
-    }
-    std::string line;
-    while (std::getline(in_workload_file, line)) {
-        op = line.substr(0, line.find(" "));
-        key = line.substr(line.find(" ")+1);
-        val = "";
-        if (key.find(" ") != -1) {
-            val = key.substr(key.find(" ")+1);
-            key = key.substr(0, key.find(" "));
-        }
-        if(val == ""){
-            get_keys.push_back(key);
-            if (get_keys.size() == client_batch_size){
-                trace.push_back(std::make_pair(get_keys, std::vector<std::string>()));
-                get_keys.clear();
-            }
-        }
-        else {
-            put_keys.push_back(key);
-            put_values.push_back(val);
-            if (put_keys.size() == client_batch_size){
-                trace.push_back(std::make_pair(put_keys, put_values));
-                put_keys.clear();
-                put_values.clear();
-            }
-        }
-        assert (key != "PUT");
-        assert (key != "GET");
-    }
-    if (get_keys.size() > 0){
-        trace.push_back(std::make_pair(get_keys, std::vector<std::string>()));
-        get_keys.clear();
-    }
-    if (put_keys.size() > 0){
-        trace.push_back(std::make_pair(put_keys, put_values));
-        put_keys.clear();
-        put_values.clear();
-    }
-    in_workload_file.close();
-};
 
 void run_benchmark(int run_time, bool stats, std::vector<int> &latencies, int client_batch_size,
-                   int object_size, trace_vector &trace, std::atomic<int> &xput, async_proxy_client client) {
+                   int object_size, TimeSeriesDataMap& timeSeriesDataMap, std::atomic<int> &xput, async_proxy_client client) {
     std::string dummy(object_size, '0');
     int ops = 0;
     if (stats) {
@@ -86,20 +35,13 @@ void run_benchmark(int run_time, bool stats, std::vector<int> &latencies, int cl
     std::vector<std::string> results;
     int i = 0;
     while (elapsed < run_time*1000000) {
-        if(i == trace.size()) break;
-        //std::cout << "Entering proxy_benchmark.cpp line " << __LINE__ << "i =  " << i << std::endl;
         if (stats) {
             rdtscll(start);
         }
-        auto keys_values_pair = trace[i];
-        if (keys_values_pair.second.empty()){
-            //std::cout << "Entering proxy_benchmark.cpp line " << __LINE__ << std::endl;
-            client.get_batch(keys_values_pair.first);
-        }
-        else {
-            //std::cout << "Entering proxy_benchmark.cpp line " << __LINE__ << std::endl;
-            client.put_batch(keys_values_pair.first, keys_values_pair.second);
-        }
+        auto keys_values_pair = timeSeriesDataMap.generate_batch_TS_data();
+
+        //std::cout << "Entering proxy_benchmark.cpp line " << __LINE__ << std::endl;
+        client.put_batch(keys_values_pair.first, keys_values_pair.second);
         if (stats) {
             rdtscll(end);
             double cycles = static_cast<double>(end - start);
@@ -121,27 +63,32 @@ void run_benchmark(int run_time, bool stats, std::vector<int> &latencies, int cl
 }
 
 void warmup(std::vector<int> &latencies, int client_batch_size,
-            int object_size, trace_vector &trace, std::atomic<int> &xput, async_proxy_client client) {
-    run_benchmark(15, false, latencies, client_batch_size, object_size, trace, xput, client);
+            int object_size, TimeSeriesDataMap &timeSeriesDataMap, std::atomic<int> &xput, async_proxy_client client) {
+    run_benchmark(15, false, latencies, client_batch_size, object_size, timeSeriesDataMap, xput, client);
 }
 
 void cooldown(std::vector<int> &latencies, int client_batch_size,
-              int object_size, trace_vector &trace, std::atomic<int> &xput, async_proxy_client client) {
-    run_benchmark(15, false, latencies, client_batch_size, object_size, trace, xput, client);
+              int object_size, TimeSeriesDataMap &timeSeriesDataMap, std::atomic<int> &xput, async_proxy_client client) {
+    run_benchmark(15, false, latencies, client_batch_size, object_size, timeSeriesDataMap, xput, client);
 }
 
-void client(int idx, int client_batch_size, int object_size, trace_vector &trace, std::string &output_directory, std::string &host, int proxy_port, std::atomic<int> &xput) {
+void client(int idx, int client_batch_size, int object_size, std::string &output_directory, std::string &host, int proxy_port, std::atomic<int> &xput) {
     async_proxy_client client;
     client.init(host, proxy_port);
+
+
+    //generate keys
+    auto keys=ItemIdGenerator::generate_item_ids(1000000);
+    auto timeSeriesDataMap = TimeSeriesDataMap(keys, 1, object_size,client_batch_size);
 
     // std::cout << "Client initialized with batch size " << client_batch_size << std::endl;
     std::atomic<int> indiv_xput;
     std::atomic_init(&indiv_xput, 0);
     std::vector<int> latencies;
     // std::cout << "Beginning warmup" << std::endl;
-    warmup(latencies, client_batch_size, object_size, trace, indiv_xput, client);
+    warmup(latencies, client_batch_size, object_size, timeSeriesDataMap, indiv_xput, client);
     // std::cout << "Beginning benchmark" << std::endl;
-    run_benchmark(30, true, latencies, client_batch_size, object_size, trace, indiv_xput, client);
+    run_benchmark(30, true, latencies, client_batch_size, object_size, timeSeriesDataMap, indiv_xput, client);
     std::string location = output_directory + "/" + std::to_string(idx);
     std::ofstream out(location);
     std::string line("");
@@ -156,7 +103,7 @@ void client(int idx, int client_batch_size, int object_size, trace_vector &trace
 
     // std::cout << "xput is: " << xput << std::endl;
     // std::cout << "Beginning cooldown" << std::endl;
-    cooldown(latencies, client_batch_size, object_size, trace, indiv_xput, client);
+    cooldown(latencies, client_batch_size, object_size, timeSeriesDataMap, indiv_xput, client);
 
     client.finish();
 }
@@ -188,7 +135,7 @@ int main(int argc, char *argv[]) {
     int proxy_port = 9090;
     std::string trace_location = "";
     int client_batch_size = 50;
-    int object_size = 1000;
+    int object_size = 1024;
     int num_clients = 1;
 
     std::time_t end_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -229,13 +176,11 @@ int main(int argc, char *argv[]) {
     std::atomic<int> xput;
     std::atomic_init(&xput, 0);
 
-    trace_vector trace;
-    load_trace(trace_location, trace, client_batch_size);
     // std::cout << "trace loaded" << std::endl;
 
     std::vector<std::thread> threads;
     for (int i = 0; i < num_clients; i++) {
-        threads.push_back(std::thread(client, std::ref(i), std::ref(client_batch_size), std::ref(object_size), std::ref(trace),
+        threads.push_back(std::thread(client, std::ref(i), std::ref(client_batch_size), std::ref(object_size),
                                       std::ref(output_directory), std::ref(proxy_host), std::ref(proxy_port), std::ref(xput)));
     }
     for (int i = 0; i < num_clients; i++)

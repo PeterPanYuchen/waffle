@@ -130,3 +130,21 @@
         for (auto it = key_vectors.begin(); it != key_vectors.end(); it++)
             clients[it->first]->commit();
     }
+    size_t redis::get_database_size() {
+        // Assuming you want to check the size of the first (or any specific) Redis instance.
+        if (clients.empty()) {
+            throw std::runtime_error("No Redis clients are connected.");
+        }
+
+        auto& client = clients.front(); // Get the first client or modify to select a specific one.
+        auto future = client->dbsize();
+        client->commit(); // Make sure to commit to send the command to the server.
+        auto reply = future.get(); // Wait for and get the reply.
+
+        if (reply.is_error()) {
+            throw std::runtime_error(reply.error());
+        }
+
+        // dbsize command returns the number of keys as an integer.
+        return reply.as_integer();
+    }
